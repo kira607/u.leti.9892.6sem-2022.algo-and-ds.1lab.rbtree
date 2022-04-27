@@ -32,6 +32,9 @@ def main():
     t[0] = 100
     print(t)
     t.print_tree()
+    del t[5]
+    t.print_tree()
+    print(dict(t.items()))
 
 
 if __name__ == '__main__':

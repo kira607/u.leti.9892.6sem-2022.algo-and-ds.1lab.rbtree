@@ -15,10 +15,10 @@ class RBTreeNode:
     ) -> None:
         self.key = key
         self.value = value
-        self._color = color
         self.parent = parent
-        self._left = left or RBTreeNode(None, parent=self) if key is not None else None
-        self._right = right or RBTreeNode(None, parent=self) if key is not None else None
+        self._color = color
+        self.left = left or RBTreeNode(None, parent=self) if key is not None else None
+        self.right = right or RBTreeNode(None, parent=self) if key is not None else None
 
     def __eq__(self, other: 'RBTreeNode'):
         return self.key == other.key
@@ -33,27 +33,21 @@ class RBTreeNode:
         info = f'{self.color.name} {self.key}:{repr(self.value)}' if bool(self) else 'NULL'
         return f'<{self.__class__.__name__} {info}>'
 
+    def is_left_child(self):
+        if not self.parent:
+            return False
+        return self == self.parent.left
+
+    def is_right_child(self):
+        if not self.parent:
+            return False
+        return self == self.parent.right
+
     @property
     def gparent(self):
         if self.parent:
             return self.parent.parent
         return None
-
-    @property
-    def left(self):
-        return self._left
-
-    @left.setter
-    def left(self, node: 'RBTreeNode'):
-        self._left = node
-
-    @property
-    def right(self):
-        return self._right
-
-    @right.setter
-    def right(self, node: 'RBTreeNode'):
-        self._right = node
 
     @property
     def color(self):
