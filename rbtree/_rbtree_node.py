@@ -1,4 +1,4 @@
-from typing import Any, Hashable, Optional
+from typing import Any, Hashable, Optional, Union
 
 from ._rbtree_color import RBTreeColor
 
@@ -13,6 +13,7 @@ class RBTreeNode:
         left: Optional['RBTreeNode'] = None,
         right: Optional['RBTreeNode'] = None,
     ) -> None:
+        hash(key)
         self.key = key
         self.value = value
         self.parent = parent
@@ -20,8 +21,23 @@ class RBTreeNode:
         self.left = left or RBTreeNode(None, parent=self) if key is not None else None
         self.right = right or RBTreeNode(None, parent=self) if key is not None else None
 
-    def __eq__(self, other: 'RBTreeNode'):
-        return self.key == other.key
+    def __eq__(self, other: Union['RBTreeNode', Hashable]):
+        return hash(self.key) == hash(other)
+
+    def __gt__(self, other: Union['RBTreeNode', Hashable]):
+        return hash(self.key) > hash(other)
+
+    def __lt__(self, other: Union['RBTreeNode', Hashable]):
+        return hash(self.key) < hash(other)
+
+    def __le__(self, other: Union['RBTreeNode', Hashable]):
+        return (self < other) or (self == other)
+
+    def __ge__(self, other: Union['RBTreeNode', Hashable]):
+        return (self > other) or (self == other)
+
+    def __hash__(self):
+        return hash(self.key)
 
     def __bool__(self):
         return not (self.key is None)

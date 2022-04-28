@@ -1,3 +1,5 @@
+from typing import Any, Hashable, Optional, Union
+
 from ._errors import LeftRotateError, RightRotateError
 from ._rbtree_node import RBTreeNode, RBTreeColor
 
@@ -7,11 +9,11 @@ class RBTree:
         self._len = 0
         self._root = RBTreeNode()
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: Hashable):
         node = self._get_node(key, True)
         return node.value
 
-    def __setitem__(self, key, value) -> None:
+    def __setitem__(self, key: Hashable, value: Any) -> None:
         '''insert a new node.'''
         node = self._get_node(key)
 
@@ -24,7 +26,7 @@ class RBTree:
         new_node.parent = leaf
         if not leaf:
             self._root = new_node
-        elif new_node.key > leaf.key:
+        elif new_node > leaf:
             leaf.right = new_node
         else:
             leaf.left = new_node
@@ -40,7 +42,6 @@ class RBTree:
         self._fix_insert(new_node)
 
     def __delitem__(self, key):
-        # TODO: fix this
         node_to_delete = self._get_node(key, raise_error=True)
         node_to_delete_2 = node_to_delete
         node_to_delete_original_color = node_to_delete_2.color
@@ -67,16 +68,17 @@ class RBTree:
             node_to_delete_2.color = node_to_delete.color
         if node_to_delete_original_color == RBTreeColor.BLACK:
             self._fix_delete(x)
+        self._len -= 1
 
     def __len__(self):
         return self._len
 
     def __str__(self):
-        string = f'{self.__class__.__name__}('
+        string = f'{self.__class__.__name__}({{'
         for k, v in self.items():
-            string += f'{k}: {repr(v)},'
-        string = string[:-1]
-        string += ')'
+            string += f'{repr(k)}: {repr(v)}, '
+        string = string[:-2]
+        string += '})'
         return string
 
     def __iter__(self):
@@ -85,7 +87,7 @@ class RBTree:
     def __bool__(self):
         return len(self) != 0
 
-    def get(self, key, default=None):
+    def get(self, key: Hashable, default: Any = None) -> Union[RBTreeNode, Any]:
         try:
             return self[key]
         except KeyError:
@@ -95,13 +97,13 @@ class RBTree:
         for k in self.keys():
             yield k, self[k]
 
-    def insert(self, key, value):
+    def insert(self, key: Hashable, value: Any):
         self[key] = value
 
-    def remove(self, key):
+    def remove(self, key: Hashable):
         del self[key]
 
-    def find(self, key):
+    def find(self, key: Hashable):
         return self[key]
 
     def clear(self):
@@ -116,8 +118,8 @@ class RBTree:
     def print(self):
         print(self)
 
-    def print_tree(self):
-        self._print_tree(self._root, '', right=False, root=True)
+    def print_tree(self, hash_key: bool = False):
+        self._print_tree(self._root, '', right=False, root=True, hash_key=hash_key)
 
     def get_max(self, node: RBTreeNode = None) -> RBTreeNode:
         node = node or self._root
@@ -131,7 +133,7 @@ class RBTree:
             node = node.left
         return node
 
-    def _fix_insert(self, new_node):
+    def _fix_insert(self, new_node: RBTreeNode):
         current_node = new_node
         while current_node.parent.color == RBTreeColor.RED:
             if current_node.parent == current_node.gparent.left:
@@ -164,7 +166,7 @@ class RBTree:
                 break
         self._root.color_black()
 
-    def _fix_delete(self, node):
+    def _fix_delete(self, node: RBTreeNode):
         # TODO: rewrite this
         while node != self._root and node.color == RBTreeColor.BLACK:
             if node.is_left_child():
@@ -271,30 +273,49 @@ class RBTree:
         left_node.right = node
         node.parent = left_node
 
-    def _print_tree(self, node, indent, right, root=False):
-        if node:
-            line = indent
-            if root:
-                line += '--> '
-                indent += '    '
-            elif right:
-                line += '└─R '
-                indent += '    '
-            else:
-                line += '├─L '
-                indent += '│   '
-            line += f'{repr(node.key)}:{repr(node.value)} ({node.color.name})'
-            print(line)
+    def _print_tree(
+        self, 
+        node: RBTreeNode, 
+        indent: str, 
+        right: bool, 
+        root: bool = False, 
+        hash_key: bool = False,
+    ) -> None:
+        if not node:
+            return
+        
+        line = indent
+        if root:
+            line += '--> '
+            indent += '    '
+        elif right:
+            line += '└─R '
+            indent += '    '
+        else:
+            line += '├─L '
+            indent += '│   '
+        
+        k = repr(hash(node.key)) if hash_key else repr(node.key)
+        line += f'{k}:{repr(node.value)} ({node.color.name})'
+        print(line)
 
-            self._print_tree(node.left, indent, False)
-            self._print_tree(node.right, indent, True)
+        self._print_tree(node.left, indent, False, hash_key=hash_key)
+        self._print_tree(node.right, indent, True, hash_key=hash_key)
 
-    def _get_node(self, key, raise_error=False):
+    def _get_node(self, key: Hashable, raise_error: bool = False) -> Optional[RBTreeNode]:
+        '''
+        Get a node in a tree.
+        
+        :param key: The key of the node.
+        :param raise_error: If true, raise a KeyError if node with given key was not found.
+        :raises KeyError: If node with given key was not found.
+        :return: A node in the tree if exists, else None.
+        '''
         current = self._root
         while current:
-            if key > current.key:
+            if key > current:
                 current = current.right
-            elif key < current.key:
+            elif key < current:
                 current = current.left
             else:
                 return current
@@ -302,15 +323,15 @@ class RBTree:
             raise KeyError(key)
         return None
 
-    def _get_leaf(self, key):
+    def _get_leaf(self, key: Hashable):
         leaf = None
         current = self._root
         while current:
             leaf = current
-            if key < current.key:
-                current = current.left
-            elif key > current.key:
+            if key > current:
                 current = current.right
+            elif key < current:
+                current = current.left
             else:
                 return None
         return leaf
