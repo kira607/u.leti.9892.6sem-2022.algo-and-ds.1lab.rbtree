@@ -1,13 +1,18 @@
-from typing import Any, Hashable, Optional, Union
+from typing import Any, Hashable, Iterable, Optional, Tuple, Union
 
 from ._errors import LeftRotateError, RightRotateError
 from ._rbtree_node import RBTreeNode, RBTreeColor
 
 
 class RBTree:
-    def __init__(self):
+    def __init__(
+        self, 
+        **kwargs: Any,
+    ) -> None:
         self._len = 0
         self._root = RBTreeNode()
+        for k, v in kwargs.items():
+            self[k] = v
 
     def __getitem__(self, key: Hashable):
         node = self._get_node(key, True)
