@@ -24,6 +24,7 @@ def main():
     t.print_tree()
     print(dict(t.items()))
     print(len(t))
+    print('height:', t.get_height())
     t = RBTree()
     t.remove(1)
 

@@ -1,4 +1,4 @@
-from typing import Any, Hashable, Iterable, Optional, Tuple, Union
+from typing import Any, Hashable, Optional, Union
 
 from ._errors import LeftRotateError, RightRotateError
 from ._rbtree_node import RBTreeNode, RBTreeColor
@@ -46,7 +46,7 @@ class RBTree:
 
         self._fix_insert(new_node)
 
-    def __delitem__(self, key):
+    def __delitem__(self, key: Hashable):
         node_to_delete = self._get_node(key, raise_error=True)
         node_to_delete_2 = node_to_delete
         node_to_delete_original_color = node_to_delete_2.color
@@ -57,7 +57,7 @@ class RBTree:
             x = node_to_delete.left
             self._swap(node_to_delete, node_to_delete.left)
         else:
-            node_to_delete_2 = self.get_min(node_to_delete.right)
+            node_to_delete_2 = self.get_min_node(node_to_delete.right)
             node_to_delete_original_color = node_to_delete_2.color
             x = node_to_delete_2.right
             if node_to_delete_2.parent == node_to_delete:
@@ -91,6 +91,10 @@ class RBTree:
 
     def __bool__(self):
         return len(self) != 0
+
+    @property
+    def height(self):
+        return self.get_height()
 
     def get(self, key: Hashable, default: Any = None) -> Union[RBTreeNode, Any]:
         try:
@@ -126,17 +130,30 @@ class RBTree:
     def print_tree(self, hash_key: bool = False):
         self._print_tree(self._root, '', right=False, root=True, hash_key=hash_key)
 
-    def get_max(self, node: RBTreeNode = None) -> RBTreeNode:
+    def get_max_node(self, node: RBTreeNode = None) -> RBTreeNode:
         node = node or self._root
         while node.right:
             node = node.right
         return node
 
-    def get_min(self, node: RBTreeNode = None) -> RBTreeNode:
+    def get_min_node(self, node: RBTreeNode = None) -> RBTreeNode:
         node = node or self._root
         while node.left:
             node = node.left
         return node
+
+    def get_height(self, node: RBTreeNode = None, h: int = 0) -> int:
+        if not self._root:
+            return 0
+        if not isinstance(node, RBTreeNode):
+            node = self._root
+
+        if not node:
+            return h
+        else:
+            h += 1
+
+        return max(self.get_height(node.left, h), self.get_height(node.right, h))
 
     def _fix_insert(self, new_node: RBTreeNode):
         current_node = new_node
@@ -172,7 +189,6 @@ class RBTree:
         self._root.color_black()
 
     def _fix_delete(self, node: RBTreeNode):
-        # TODO: rewrite this
         while node != self._root and node.color == RBTreeColor.BLACK:
             if node.is_left_child():
                 s = node.parent.right
@@ -203,7 +219,7 @@ class RBTree:
                     self._right_rotate(node.parent)
                     s = node.parent.left
                 if s.right.color == RBTreeColor.BLACK and s.left.color == RBTreeColor.BLACK:
-                    s.color_red
+                    s.color_red()
                     node = node.parent
                 else:
                     if s.left.color == RBTreeColor.BLACK:
