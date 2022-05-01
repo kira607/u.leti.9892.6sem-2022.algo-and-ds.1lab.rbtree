@@ -1,4 +1,3 @@
-import graphviz
 from typing import Any, Hashable, Optional, Union
 
 from ._rbtree_node import RBTreeNode, RBTreeColor
@@ -12,11 +11,12 @@ class RBTree:
             self[k] = v
 
     def __getitem__(self, key: Hashable):
+        '''Get value by key.'''
         node = self._get_node(key, True)
         return node.value
 
     def __setitem__(self, key: Hashable, value: Any) -> None:
-        '''insert a new node.'''
+        '''Insert a new node or rewrite existing.'''
         node = self._get_node(key)
 
         if node:
@@ -37,13 +37,13 @@ class RBTree:
         self._len += 1
 
     def __delitem__(self, key: Hashable):
+        '''Delete node.'''
         node_to_delete = self._get_node(key, raise_error=True)
-        print(node_to_delete)
 
         if node_to_delete.left and node_to_delete.right:
             fix_node = (
-                self.get_min_node(node_to_delete.right)
-                or self.get_max_node(node_to_delete.left)
+                self._get_min_node(node_to_delete.right)
+                or self._get_max_node(node_to_delete.left)
             )
             self._swap_kv(node_to_delete, fix_node)
             node_to_delete = fix_node
@@ -52,6 +52,7 @@ class RBTree:
         self._len -= 1
 
     def __len__(self):
+        '''Get the number of nodes.'''
         return self._len
 
     def __str__(self):
@@ -70,7 +71,8 @@ class RBTree:
 
     @property
     def height(self):
-        return self.get_height()
+        '''Get tree height.'''
+        return self._get_height()
 
     def get(self, key: Hashable, default: Any = None) -> Union[RBTreeNode, Any]:
         try:
@@ -87,6 +89,17 @@ class RBTree:
 
     def values(self):
         return tuple(node.value for node in self._traverse_inorder(self._root))
+
+    def print_tree(self, hash_key: bool = False):
+        self._print_tree(self._root, '', right=False, root=True, hash_key=hash_key)
+    
+    def get_dot_string(self) -> str:
+        graphviz_string = 'graph {\n'
+        for k in self.keys():
+            node = self._get_node(k, True)
+            graphviz_string += node.get_graphviz()
+        graphviz_string += '}'
+        return graphviz_string
 
     # Task methods (start)
 
@@ -114,22 +127,19 @@ class RBTree:
 
     # Task methods (end)
 
-    def print_tree(self, hash_key: bool = False):
-        self._print_tree(self._root, '', right=False, root=True, hash_key=hash_key)
-
-    def get_max_node(self, node: RBTreeNode = None) -> RBTreeNode:
+    def _get_max_node(self, node: RBTreeNode = None) -> RBTreeNode:
         node = node or self._root
         while node.right:
             node = node.right
         return node
 
-    def get_min_node(self, node: RBTreeNode = None) -> RBTreeNode:
+    def _get_min_node(self, node: RBTreeNode = None) -> RBTreeNode:
         node = node or self._root
         while node.left:
             node = node.left
         return node
 
-    def get_height(self, node: RBTreeNode = None, h: int = 0) -> int:
+    def _get_height(self, node: RBTreeNode = None, h: int = 0) -> int:
         if not self._root:
             return 0
         if not isinstance(node, RBTreeNode):
@@ -140,15 +150,7 @@ class RBTree:
         else:
             h += 1
 
-        return max(self.get_height(node.left, h), self.get_height(node.right, h))
-
-    def get_graphviz(self) -> graphviz.Source:
-        graphviz_string = 'graph {\n'
-        for k in self.keys():
-            node = self._get_node(k, True)
-            graphviz_string += node.get_graphviz()
-        graphviz_string += '}'
-        return graphviz.Source(graphviz_string)
+        return max(self._get_height(node.left, h), self._get_height(node.right, h))
 
     def _fix_insert(self, node: RBTreeNode):
         self._insert_case_1(node)
@@ -177,10 +179,10 @@ class RBTree:
             self._insert_case_4(node)
 
     def _insert_case_4(self, node: RBTreeNode) -> None:
-        if node.is_right_child() and node.parent.is_left_child():
+        if node.is_right() and node.parent.is_left():
             self._left_rotate(node.parent)
             node = node.left
-        elif node.is_left_child() and node.parent.is_right_child():
+        elif node.is_left() and node.parent.is_right():
             self._right_rotate(node.parent)
             node = node.right
         self._insert_case_5(node)
@@ -189,7 +191,7 @@ class RBTree:
         g = node.gparent
         node.parent.color_black()
         g.color_red()
-        if node.is_left_child() and node.parent.is_left_child():
+        if node.is_left() and node.parent.is_left():
             self._right_rotate(g)
         else:
             self._left_rotate(g)
@@ -197,7 +199,7 @@ class RBTree:
     def _replace(self, node: RBTreeNode, child: RBTreeNode) -> None:
         if not node.parent:
             self.root = child
-        elif node.is_left_child():
+        elif node.is_left():
             node.parent.left = child
         else:
             node.parent.right = child
@@ -208,7 +210,6 @@ class RBTree:
             raise RuntimeError('Attempting to delete a node with both children existing (expected <= 1)')
 
         child = node.left if node.left else node.right
-        print(f'replacing {node} with {child}')
         self._replace(node, child)
         if node.is_black():
             if child.is_red():
@@ -230,7 +231,7 @@ class RBTree:
         if bro.is_red():
             node.parent.color_red()
             bro.color_black()
-            if node.is_left_child():
+            if node.is_left():
                 self._left_rotate(node.parent)
             else:
                 self._right_rotate(node.parent)
@@ -267,7 +268,7 @@ class RBTree:
 
         if bro.is_black():
             if (
-                node.is_left_child()
+                node.is_left()
                 and bro.right.is_black()
                 and bro.left.is_red()
             ):
@@ -275,7 +276,7 @@ class RBTree:
                 bro.left.color_black()
                 self._right_rotate(bro)
             elif (
-                node.is_right_child()
+                node.is_right()
                 and bro.right.is_red()
                 and bro.left.is_black()
             ):
@@ -290,7 +291,7 @@ class RBTree:
         bro.color = node.parent.color
         node.parent.color_black()
 
-        if node.is_left_child():
+        if node.is_left():
             bro.right.color_black()
             self._left_rotate(node.parent)
         else:
@@ -326,7 +327,7 @@ class RBTree:
 
         if not x.parent:
             self._root = y
-        elif x.is_left_child():
+        elif x.is_left():
             x.parent.left = y
         else:
             x.parent.right = y
@@ -345,7 +346,7 @@ class RBTree:
 
         if not x.parent:
             self._root = y
-        elif x.is_left_child():
+        elif x.is_left():
             x.parent.left = y
         else:
             x.parent.right = y

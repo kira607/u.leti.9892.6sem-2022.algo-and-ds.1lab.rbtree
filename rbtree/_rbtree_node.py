@@ -45,22 +45,19 @@ class RBTreeNode:
     def __str__(self):
         if self:
             return f'{repr(self.key)}:{repr(self.value)}'
-        from random import randint
-        from string import ascii_lowercase
-        return f'NULL-{"".join(ascii_lowercase[randint(0, len(ascii_lowercase) - 1)] for _ in range(3))}'
+        return 'NULL'
 
     def __repr__(self):
-        info = f'{self.color.name} {repr(self.key)}:{repr(self.value)}' if bool(self) else 'NULL'
-        return f'<{self.__class__.__name__} {info}>'
+        return f'<{self.__class__.__name__} {str(self)} {self.color.name}>'
 
     @property
     def bro(self) -> Optional['RBTreeNode']:
         '''Get node brother.'''
         if not self.parent:
             return None 
-        if self.is_left_child():
+        if self.is_left():
             return self.parent.right
-        if self.is_right_child():
+        if self.is_right():
             return self.parent.left
 
     @property
@@ -75,9 +72,9 @@ class RBTreeNode:
         '''Get node uncle.'''
         if not self.gparent:
             return None
-        if self.parent.is_left_child():
+        if self.parent.is_left():
             return self.gparent.right
-        elif self.parent.is_right_child():
+        elif self.parent.is_right():
             return self.gparent.left
         return None
 
@@ -103,12 +100,12 @@ class RBTreeNode:
     def color_red(self):
         self.color = RBTreeColor.RED
 
-    def is_left_child(self):
+    def is_left(self):
         if not self.parent:
             return False
         return self == self.parent.left
 
-    def is_right_child(self):
+    def is_right(self):
         if not self.parent:
             return False
         return self == self.parent.right
