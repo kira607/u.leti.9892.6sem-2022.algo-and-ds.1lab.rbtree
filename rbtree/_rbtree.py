@@ -1,14 +1,11 @@
+import graphviz
 from typing import Any, Hashable, Optional, Union
 
-from ._errors import LeftRotateError, RightRotateError
 from ._rbtree_node import RBTreeNode, RBTreeColor
 
 
 class RBTree:
-    def __init__(
-        self, 
-        **kwargs: Any,
-    ) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         self._len = 0
         self._root = RBTreeNode()
         for k, v in kwargs.items():
@@ -36,43 +33,22 @@ class RBTree:
         else:
             leaf.left = new_node
 
-        self._len += 1
-
-        if not new_node.parent:
-            new_node.color_black()
-            return
-        if not new_node.gparent:
-            return
-
         self._fix_insert(new_node)
+        self._len += 1
 
     def __delitem__(self, key: Hashable):
         node_to_delete = self._get_node(key, raise_error=True)
-        node_to_delete_2 = node_to_delete
-        node_to_delete_original_color = node_to_delete_2.color
-        if not node_to_delete.left:
-            x = node_to_delete.right
-            self._swap(node_to_delete, node_to_delete.right)
-        elif not node_to_delete.right:
-            x = node_to_delete.left
-            self._swap(node_to_delete, node_to_delete.left)
-        else:
-            node_to_delete_2 = self.get_min_node(node_to_delete.right)
-            node_to_delete_original_color = node_to_delete_2.color
-            x = node_to_delete_2.right
-            if node_to_delete_2.parent == node_to_delete:
-                x.parent = node_to_delete_2
-            else:
-                self._swap(node_to_delete_2, node_to_delete_2.right)
-                node_to_delete_2.right = node_to_delete.right
-                node_to_delete_2.right.parent = node_to_delete_2
+        print(node_to_delete)
 
-            self._swap(node_to_delete, node_to_delete_2)
-            node_to_delete_2.left = node_to_delete.left
-            node_to_delete_2.left.parent = node_to_delete_2
-            node_to_delete_2.color = node_to_delete.color
-        if node_to_delete_original_color == RBTreeColor.BLACK:
-            self._fix_delete(x)
+        if node_to_delete.left and node_to_delete.right:
+            fix_node = (
+                self.get_min_node(node_to_delete.right)
+                or self.get_max_node(node_to_delete.left)
+            )
+            self._swap_kv(node_to_delete, fix_node)
+            node_to_delete = fix_node
+
+        self._delete(node_to_delete)
         self._len -= 1
 
     def __len__(self):
@@ -106,6 +82,14 @@ class RBTree:
         for k in self.keys():
             yield k, self[k]
 
+    def keys(self):
+        return tuple(node.key for node in self._traverse_inorder(self._root))
+
+    def values(self):
+        return tuple(node.value for node in self._traverse_inorder(self._root))
+
+    # Task methods (start)
+
     def insert(self, key: Hashable, value: Any):
         self[key] = value
 
@@ -116,16 +100,19 @@ class RBTree:
         return self[key]
 
     def clear(self):
-        pass
+        while self:
+            del self[self._root.key]
 
-    def keys(self):
-        return tuple(node.key for node in self._traverse_inorder(self._root))
+    def get_keys(self):
+        return self.keys()
 
-    def values(self):
-        return tuple(node.value for node in self._traverse_inorder(self._root))
+    def get_values(self):
+        return self.values()
 
     def print(self):
         print(self)
+
+    # Task methods (end)
 
     def print_tree(self, hash_key: bool = False):
         self._print_tree(self._root, '', right=False, root=True, hash_key=hash_key)
@@ -155,84 +142,160 @@ class RBTree:
 
         return max(self.get_height(node.left, h), self.get_height(node.right, h))
 
-    def _fix_insert(self, new_node: RBTreeNode):
-        current_node = new_node
-        while current_node.parent.color == RBTreeColor.RED:
-            if current_node.parent == current_node.gparent.left:
-                if current_node.gparent.right.color == RBTreeColor.RED:
-                    current_node.gparent.right.color_black()
-                    current_node.parent.color_black()
-                    current_node.gparent.color_red()
-                    current_node = current_node.gparent
-                else:
-                    if current_node == current_node.parent.right:
-                        current_node = current_node.parent
-                        self._left_rotate(current_node)
-                    current_node.parent.color_black()
-                    current_node.gparent.color_red()
-                    self._right_rotate(current_node.gparent)
-            elif current_node.parent == current_node.gparent.right:
-                if current_node.gparent.left.color == RBTreeColor.RED:
-                    current_node.gparent.left.color_black()
-                    current_node.parent.color_black()
-                    current_node.gparent.color_red()
-                    current_node = current_node.gparent
-                else:
-                    if current_node == current_node.parent.left:
-                        current_node = current_node.parent
-                        self._right_rotate(current_node)
-                    current_node.parent.color_black()
-                    current_node.gparent.color_red()
-                    self._left_rotate(current_node.gparent)
-            if current_node == self._root:
-                break
-        self._root.color_black()
+    def get_graphviz(self) -> graphviz.Source:
+        graphviz_string = 'graph {\n'
+        for k in self.keys():
+            node = self._get_node(k, True)
+            graphviz_string += node.get_graphviz()
+        graphviz_string += '}'
+        return graphviz.Source(graphviz_string)
 
-    def _fix_delete(self, node: RBTreeNode):
-        while node != self._root and node.color == RBTreeColor.BLACK:
-            if node.is_left_child():
-                s = node.parent.right
-                if s.color == RBTreeColor.RED:
-                    s.color_black()
-                    node.parent.color_red()
-                    self._left_rotate(node.parent)
-                    s = node.parent.right
-                if s.left.color == RBTreeColor.BLACK and s.right.color == RBTreeColor.BLACK:
-                    s.color_red()
-                    node = node.parent
-                else:
-                    if s.right.color == RBTreeColor.BLACK:
-                        s.left.color_black()
-                        s.color_red()
-                        self._right_rotate(s)
-                        s = node.parent.right
-                    s.color = node.parent.color
-                    node.parent.color_black()
-                    s.right.color_black()
-                    self._left_rotate(node.parent)
-                    node = self._root
+    def _fix_insert(self, node: RBTreeNode):
+        self._insert_case_1(node)
+
+    def _insert_case_1(self, node: RBTreeNode) -> None:
+        if not node.parent:
+            node.color_black()
+        else:
+            self._insert_case_2(node)
+
+    def _insert_case_2(self, node: RBTreeNode) -> None:
+        if node.parent.is_black():
+            return
+        else:
+            self._insert_case_3(node)
+
+    def _insert_case_3(self, node: RBTreeNode) -> None:
+        u = node.uncle
+        if u and u.is_red():
+            node.parent.color_black()
+            u.color_black()
+            g = node.gparent
+            g.color_red()
+            self._insert_case_1(g)
+        else:
+            self._insert_case_4(node)
+
+    def _insert_case_4(self, node: RBTreeNode) -> None:
+        if node.is_right_child() and node.parent.is_left_child():
+            self._left_rotate(node.parent)
+            node = node.left
+        elif node.is_left_child() and node.parent.is_right_child():
+            self._right_rotate(node.parent)
+            node = node.right
+        self._insert_case_5(node)
+
+    def _insert_case_5(self, node: RBTreeNode) -> None:
+        g = node.gparent
+        node.parent.color_black()
+        g.color_red()
+        if node.is_left_child() and node.parent.is_left_child():
+            self._right_rotate(g)
+        else:
+            self._left_rotate(g)
+
+    def _replace(self, node: RBTreeNode, child: RBTreeNode) -> None:
+        if not node.parent:
+            self.root = child
+        elif node.is_left_child():
+            node.parent.left = child
+        else:
+            node.parent.right = child
+        child.parent = node.parent
+
+    def _delete(self, node: RBTreeNode) -> None:
+        if node.left and node.right:
+            raise RuntimeError('Attempting to delete a node with both children existing (expected <= 1)')
+
+        child = node.left if node.left else node.right
+        print(f'replacing {node} with {child}')
+        self._replace(node, child)
+        if node.is_black():
+            if child.is_red():
+                child.color_black()
             else:
-                s = node.parent.left
-                if s.color == RBTreeColor.RED:
-                    s.color_black()
-                    node.parent.color_red()
-                    self._right_rotate(node.parent)
-                    s = node.parent.left
-                if s.right.color == RBTreeColor.BLACK and s.left.color == RBTreeColor.BLACK:
-                    s.color_red()
-                    node = node.parent
-                else:
-                    if s.left.color == RBTreeColor.BLACK:
-                        s.right.color_black()
-                        s.color_red()
-                        self._left_rotate(s)
-                        s = node.parent.left
-                    s.color = node.parent.color
-                    node.parent.color_black()
-                    s.left.color_black()
-                    self._right_rotate(node.parent)
-                    node = self._root
-        node.color_black()
+                self._fix_delete(child)
+        del node
+  
+    def _fix_delete(self, node: RBTreeNode):
+        self._del_case_1(node)
+
+    def _del_case_1(self, node: RBTreeNode) -> None:
+        if not node.parent:
+            return
+        self._del_case_2(node)
+
+    def _del_case_2(self, node: RBTreeNode) -> None:
+        bro = node.bro
+        if bro.is_red():
+            node.parent.color_red()
+            bro.color_black()
+            if node.is_left_child():
+                self._left_rotate(node.parent)
+            else:
+                self._right_rotate(node.parent)
+        self._del_case_3(node)
+
+    def _del_case_3(self, node: RBTreeNode) -> None:
+        bro = node.bro
+        if (
+            node.parent.is_black()
+            and bro.is_black()
+            and bro.left.is_black()
+            and bro.right.is_black()
+        ):
+            bro.color_red()
+            self._del_case_1(node.parent)
+        else:
+            self._del_case_4(node)
+
+    def _del_case_4(self, node: RBTreeNode) -> None:
+        bro = node.bro
+        if (
+            node.parent.is_red()
+            and bro.is_black()
+            and bro.left.is_black()
+            and bro.right.is_black()
+        ):
+            bro.color_red()
+            node.parent.color_black()
+        else:
+            self._del_case_5(node)
+
+    def _del_case_5(self, node: RBTreeNode) -> None:
+        bro = node.bro
+
+        if bro.is_black():
+            if (
+                node.is_left_child()
+                and bro.right.is_black()
+                and bro.left.is_red()
+            ):
+                bro.color_red()
+                bro.left.color_black()
+                self._right_rotate(bro)
+            elif (
+                node.is_right_child()
+                and bro.right.is_red()
+                and bro.left.is_black()
+            ):
+                bro.color_red()
+                bro.right.color_black()
+                self._left_rotate(bro)
+        self._del_case_6(node)
+
+    def _del_case_6(self, node: RBTreeNode) -> None:
+        bro = node.bro
+
+        bro.color = node.parent.color
+        node.parent.color_black()
+
+        if node.is_left_child():
+            bro.right.color_black()
+            self._left_rotate(node.parent)
+        else:
+            bro.left.color_black()
+            self._right_rotate(node.parent)
 
     def _traverse_preorder(self, node):
         if node:
@@ -252,47 +315,43 @@ class RBTree:
             yield from self._traverse_postorder(node.right)
             yield node
 
-    def _left_rotate(self, node):
-        right_node = node.right
-        node.right = right_node.left
+    def _left_rotate(self, x: RBTreeNode):
+        y = x.right
+        x.right = y.left
 
-        if not right_node:
-            raise LeftRotateError('Cannot left rotate a node without a right child')
+        if y.left:
+            y.left.parent = x
 
-        if right_node.left:
-            right_node.left.parent = node
+        y.parent = x.parent
 
-        right_node.parent = node.parent
-        if not node.parent:
-            self._root = right_node
-        elif node == node.parent.left:
-            node.parent.left = right_node
-        elif node == node.parent.right:
-            node.parent.right = right_node
+        if not x.parent:
+            self._root = y
+        elif x.is_left_child():
+            x.parent.left = y
+        else:
+            x.parent.right = y
 
-        right_node.left = node
-        node.parent = right_node
+        y.left = x
+        x.parent = y
 
-    def _right_rotate(self, node):
-        left_node = node.left
-        node.left = left_node.right
+    def _right_rotate(self, x: RBTreeNode):
+        y = x.left
+        x.left = y.right
 
-        if not left_node:
-            raise RightRotateError('Cannot right rotate a node without a left child')
+        if y.right:
+            y.right.parent = x
 
-        if left_node.right:
-            left_node.right.parent = node
+        y.parent = x.parent
 
-        left_node.parent = node.parent
-        if not node.parent:
-            self._root = left_node
-        elif node == node.parent.right:
-            node.parent.right = left_node
-        elif node == node.parent.left:
-            node.parent.left = left_node
+        if not x.parent:
+            self._root = y
+        elif x.is_left_child():
+            x.parent.left = y
+        else:
+            x.parent.right = y
 
-        left_node.right = node
-        node.parent = left_node
+        y.right = x
+        x.parent = y
 
     def _print_tree(
         self, 
@@ -357,11 +416,7 @@ class RBTree:
                 return None
         return leaf
 
-    def _swap(self, node_a: RBTreeNode, node_b: RBTreeNode) -> None:
-        if not node_a.parent:
-            self.root = node_b
-        elif node_a.is_left_child():
-            node_a.parent.left = node_b
-        else:
-            node_a.parent.right = node_b
-        node_b.parent = node_a.parent
+    def _swap_kv(self, a: RBTreeNode, b: RBTreeNode) -> None:
+        k, v = a.key, a.value
+        a.key, a.value = b.key, b.value
+        b.key, b.value = k, v

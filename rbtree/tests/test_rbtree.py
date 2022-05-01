@@ -102,3 +102,11 @@ def test_delete_error(data, missing_key, error):
     t = RBTree(**data)
     with pytest.raises(KeyError):
         del t[missing_key]
+
+
+# @pytest.mark.skip
+def test_clear():
+    t = RBTree(**_default_data)
+    t.clear()
+    assert not t
+    assert len(t) == 0
